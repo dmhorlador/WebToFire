@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Sign Up — TaskFlow</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="icon" type="image/svg+xml" href="assets/icons/favicon.svg">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="loader-overlay" id="pageLoader"><div class="spinner-grad"></div></div>
+
+<div id="alertContainer"></div>
+
+<div class="auth-wrapper">
+  <div class="hero-blob hero-blob-1"></div>
+  <div class="hero-blob hero-blob-2"></div>
+
+  <button class="theme-toggle-btn position-fixed top-0 end-0 m-4" id="themeToggle" title="Toggle dark mode">
+    <i class="bi bi-moon-stars-fill"></i>
+  </button>
+
+  <a href="index.html" class="position-fixed top-0 start-0 m-4 d-flex align-items-center gap-2 fw-bold text-decoration-none" style="color:var(--text-primary); z-index:2;">
+    <i class="bi bi-arrow-left"></i> Back home
+  </a>
+
+  <div class="glass-card auth-card">
+    <div class="text-center mb-4">
+      <div class="auth-logo"><i class="bi bi-check2-square"></i></div>
+      <h3 class="fw-bold mb-1">Create your account</h3>
+      <p class="text-secondary mb-0">Start organizing your tasks today</p>
+    </div>
+
+    <form id="registerForm" novalidate>
+      <div class="mb-3 input-icon-group">
+        <i class="bi bi-person"></i>
+        <input type="text" class="form-control form-control-custom" id="registerName" placeholder="Full name" required minlength="2">
+      </div>
+      <div class="mb-3 input-icon-group">
+        <i class="bi bi-envelope"></i>
+        <input type="email" class="form-control form-control-custom" id="registerEmail" placeholder="Email address" required>
+      </div>
+      <div class="mb-3 input-icon-group">
+        <i class="bi bi-lock"></i>
+        <input type="password" class="form-control form-control-custom" id="registerPassword" placeholder="Password (min. 6 characters)" required minlength="6">
+        <i class="bi bi-eye toggle-password" data-target="registerPassword"></i>
+      </div>
+      <div class="mb-3 input-icon-group">
+        <i class="bi bi-lock-fill"></i>
+        <input type="password" class="form-control form-control-custom" id="registerConfirmPassword" placeholder="Confirm password" required minlength="6">
+        <i class="bi bi-eye toggle-password" data-target="registerConfirmPassword"></i>
+      </div>
+      <div class="form-check mb-3">
+        <input class="form-check-input" type="checkbox" id="agreeTerms" required>
+        <label class="form-check-label text-secondary small" for="agreeTerms">
+          I agree to the Terms of Service and Privacy Policy
+        </label>
+      </div>
+      <button type="submit" class="btn btn-gradient w-100 py-2 fw-semibold" id="registerBtn">
+        <span class="btn-text">Create Account</span>
+        <span class="spinner-border spinner-border-sm d-none ms-2" role="status"></span>
+      </button>
+    </form>
+
+    <div class="divider-text">or</div>
+
+    <p class="text-center mb-0 text-secondary">
+      Already have an account?
+      <a href="login.html" class="fw-semibold text-decoration-none" style="color:var(--accent);">Log in</a>
+    </p>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script src="js/firebase-config.js"></script>
+<script src="js/main.js"></script>
+<script src="js/auth.js"></script>
+</body>
+</html>

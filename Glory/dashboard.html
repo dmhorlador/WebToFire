@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Dashboard · Student Management System</title>
+<link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+
+<div class="app-shell">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-brand">
+      <div class="logo-mark">SM</div>
+      <span>Student Manager</span>
+    </div>
+
+    <nav>
+      <a href="dashboard.html" class="active"><span class="nav-label">Dashboard</span></a>
+      <button id="addStudentNavBtn" type="button"><span class="nav-label">Add Student</span></button>
+    </nav>
+
+    <div class="sidebar-footer">
+      <div class="sidebar-user" id="currentUserEmail">Loading…</div>
+      <button type="button" class="btn btn-secondary" id="logoutBtn" style="width:100%;">Log out</button>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+
+    <div class="topbar">
+      <div>
+        <h1>Students</h1>
+        <p>View, search, and manage every student record.</p>
+      </div>
+      <button type="button" class="btn btn-primary" id="openAddModalBtn">+ Add Student</button>
+    </div>
+
+    <div id="alertBox" class="alert alert-success"></div>
+
+    <!-- Stats -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-value" id="statTotal">0</div>
+        <div class="stat-label">Total Students</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statActive">0</div>
+        <div class="stat-label">Active</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statInactive">0</div>
+        <div class="stat-label">Inactive</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value" id="statCourses">0</div>
+        <div class="stat-label">Courses</div>
+      </div>
+    </div>
+
+    <!-- Student list panel -->
+    <div class="panel">
+      <div class="panel-header">
+        <h2>All Students</h2>
+      </div>
+
+      <div class="toolbar">
+        <div class="search-box">
+          <input type="text" id="searchInput" placeholder="Search by name, email, or course…" />
+        </div>
+        <select id="statusFilter" class="filter-select">
+          <option value="all">All statuses</option>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Email</th>
+              <th>Course</th>
+              <th>Year</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody">
+            <tr class="loading-row"><td colspan="6">Loading students…</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div id="emptyState" class="empty-state hidden">
+        No students found. Try a different search or add a new student.
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- Add / Edit Student Modal -->
+<div class="modal-backdrop" id="studentModalBackdrop">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="studentModalTitle">Add Student</h2>
+      <button class="modal-close" id="closeStudentModalBtn" type="button">&times;</button>
+    </div>
+
+    <div id="studentFormAlert" class="alert alert-error"></div>
+
+    <form id="studentForm" novalidate>
+      <input type="hidden" id="studentId" />
+
+      <div class="form-group">
+        <label for="studentName">Full name</label>
+        <input type="text" id="studentName" placeholder="e.g. Maria Santos" required />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="studentEmail">Email</label>
+          <input type="email" id="studentEmail" placeholder="student@example.com" required />
+        </div>
+        <div class="form-group">
+          <label for="studentPhone">Phone</label>
+          <input type="tel" id="studentPhone" placeholder="(optional)" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label for="studentCourse">Course</label>
+          <input type="text" id="studentCourse" placeholder="e.g. BS Computer Science" required />
+        </div>
+        <div class="form-group">
+          <label for="studentYear">Year level</label>
+          <select id="studentYear" required>
+            <option value="">Select year</option>
+            <option value="1st Year">1st Year</option>
+            <option value="2nd Year">2nd Year</option>
+            <option value="3rd Year">3rd Year</option>
+            <option value="4th Year">4th Year</option>
+            <option value="5th Year">5th Year</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="studentStatus">Status</label>
+        <select id="studentStatus" required>
+          <option value="Active">Active</option>
+          <option value="Inactive">Inactive</option>
+        </select>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn btn-secondary" id="cancelStudentFormBtn">Cancel</button>
+        <button type="submit" class="btn btn-primary" id="saveStudentBtn">
+          <span id="saveStudentBtnText">Save Student</span>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Delete Confirm Modal -->
+<div class="modal-backdrop" id="deleteModalBackdrop">
+  <div class="modal confirm-modal">
+    <div class="modal-header">
+      <h2>Delete student?</h2>
+      <button class="modal-close" id="closeDeleteModalBtn" type="button">&times;</button>
+    </div>
+    <p>
+      This will permanently remove
+      <span class="student-name-highlight" id="deleteStudentName">this student</span>
+      from your records. This action cannot be undone.
+    </p>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-secondary" id="cancelDeleteBtn">Cancel</button>
+      <button type="button" class="btn btn-danger" id="confirmDeleteBtn">
+        <span id="confirmDeleteBtnText">Delete</span>
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Firebase SDK (compat) -->
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+
+<script src="js/firebase-config.js"></script>
+<script src="js/students.js"></script>
+<script src="js/dashboard.js"></script>
+</body>
+</html>
