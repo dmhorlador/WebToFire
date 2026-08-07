@@ -103,11 +103,11 @@ if (registerForm) {
       const cred = await auth.createUserWithEmailAndPassword(email, password);
       await cred.user.updateProfile({ displayName: name });
 
-      // Create a user profile document in Firestore
-      await db.collection("users").doc(cred.user.uid).set({
+      // Create a user profile in Realtime Database
+      await db.ref("users/" + cred.user.uid).set({
         name: name,
         email: email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: Date.now()
       });
 
       showAlert("Account created successfully! Redirecting…", "success");

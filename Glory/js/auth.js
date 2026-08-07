@@ -124,11 +124,11 @@ if (registerForm) {
       // Save the display name on the auth profile.
       await credential.user.updateProfile({ displayName: fullName });
 
-      // Store a matching user document in Firestore.
-      await db.collection("users").doc(credential.user.uid).set({
+      // Store a matching user profile in the Realtime Database.
+      await db.ref("users/" + credential.user.uid).set({
         fullName: fullName,
         email: email,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        createdAt: firebase.database.ServerValue.TIMESTAMP
       });
 
       window.location.href = "dashboard.html";

@@ -1,48 +1,70 @@
 /* ==========================================================================
    students.js
-   Firestore CRUD helpers for student records.
-   Each student document lives in the top-level "students" collection and
-   is tagged with the uid of the user who created it, so every signed-in
-   user only ever sees and manages their own records.
+   Realtime Database CRUD helpers for student records.
+   Each student record lives under "students/{studentId}" and is tagged
+   with the uid of the user who created it, so every signed-in user only
+   ever sees and manages their own records.
    Relies on `db` and `auth` from firebase-config.js
    ========================================================================== */
 
-const STUDENTS_COLLECTION = "students";
+const STUDENTS_PATH = "students";
 
 /**
- * Adds a new student document for the currently signed-in user.
+ * Adds a new student record for the currently signed-in user.
  * @param {Object} studentData - { name, email, phone, course, year, status }
  */
 async function addStudent(studentData) {
   const user = auth.currentUser;
-  if (!user) throw new Error("You must be signed in to add a student.");
+  if (!user) {
+    console.error("No user signed in");
+    throw new Error("You must be signed in to add a student.");
+  }
 
-  return db.collection(STUDENTS_COLLECTION).add({
-    ...studentData,
-    ownerId: user.uid,
-    createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-  });
+  console.log("Adding student:", studentData);
+  console.log("Current user:", user.uid);
+  console.log("Database URL:", db.ref().toString());
+
+  try {
+    const newRef = db.ref(STUDENTS_PATH).push();
+    console.log("New reference created:", newRef.toString());
+    
+    const dataToSave = {
+      ...studentData,
+      ownerId: user.uid,
+      createdAt: firebase.database.ServerValue.TIMESTAMP,
+      updatedAt: firebase.database.ServerValue.TIMESTAMP
+    };
+    
+    console.log("Data to save:", dataToSave);
+    await newRef.set(dataToSave);
+    console.log("Student saved successfully!");
+    return newRef;
+  } catch (error) {
+    console.error("Error in addStudent:", error);
+    console.error("Error code:", error.code);
+    console.error("Error message:", error.message);
+    throw error;
+  }
 }
 
 /**
- * Updates an existing student document by id.
+ * Updates an existing student record by id.
  * @param {string} studentId
  * @param {Object} studentData
  */
 async function updateStudent(studentId, studentData) {
-  return db.collection(STUDENTS_COLLECTION).doc(studentId).update({
+  return db.ref(`${STUDENTS_PATH}/${studentId}`).update({
     ...studentData,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    updatedAt: firebase.database.ServerValue.TIMESTAMP
   });
 }
 
 /**
- * Deletes a student document by id.
+ * Deletes a student record by id.
  * @param {string} studentId
  */
 async function deleteStudent(studentId) {
-  return db.collection(STUDENTS_COLLECTION).doc(studentId).delete();
+  return db.ref(`${STUDENTS_PATH}/${studentId}`).remove();
 }
 
 /**
@@ -55,19 +77,23 @@ function listenToStudents(onData, onError) {
   const user = auth.currentUser;
   if (!user) return () => {};
 
-  return db.collection(STUDENTS_COLLECTION)
-    .where("ownerId", "==", user.uid)
-    .onSnapshot(
-      (snapshot) => {
-        const students = snapshot.docs.map((doc) => ({
-          id: doc.id,
-          ...doc.data()
-        }));
-        onData(students);
-      },
-      (error) => {
-        console.error("Error listening to students:", error);
-        if (onError) onError(error);
-      }
-    );
+  const studentsRef = db.ref(STUDENTS_PATH).orderByChild("ownerId").equalTo(user.uid);
+
+  const handleValue = (snapshot) => {
+    const students = [];
+    snapshot.forEach((childSnap) => {
+      students.push({ id: childSnap.key, ...childSnap.val() });
+    });
+    onData(students);
+  };
+
+  const handleError = (error) => {
+    console.error("Error listening to students:", error);
+    if (onError) onError(error);
+  };
+
+  studentsRef.on("value", handleValue, handleError);
+
+  // Return an unsubscribe function so callers can detach the listener.
+  return () => studentsRef.off("value", handleValue);
 }

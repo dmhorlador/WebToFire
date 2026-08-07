@@ -1,48 +1,44 @@
 // app.js
 // Handles the notes dashboard: auth guard, create/read/update/delete
-// notes in Cloud Firestore, live search, and logout.
+// notes in Firebase Realtime Database, live search, and logout.
 
 import { auth, db } from "./firebase-config.js";
 import { onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 import {
-  collection,
-  query,
-  where,
-  orderBy,
-  onSnapshot,
-  addDoc,
-  updateDoc,
-  deleteDoc,
-  doc,
+  ref,
+  push,
+  update,
+  remove,
+  onValue,
   serverTimestamp
-} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+} from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 // ---------------------------------------------------------------------
 // Element references
 // ---------------------------------------------------------------------
-const userEmailEl = document.getElementById("userEmail");
-const logoutBtn = document.getElementById("logoutBtn");
-const newNoteBtn = document.getElementById("newNoteBtn");
-const searchInput = document.getElementById("searchInput");
+const userEmailEl   = document.getElementById("userEmail");
+const logoutBtn     = document.getElementById("logoutBtn");
+const newNoteBtn    = document.getElementById("newNoteBtn");
+const searchInput   = document.getElementById("searchInput");
 
-const notesGrid = document.getElementById("notesGrid");
-const emptyState = document.getElementById("emptyState");
+const notesGrid     = document.getElementById("notesGrid");
+const emptyState    = document.getElementById("emptyState");
 
-const modalOverlay = document.getElementById("modalOverlay");
-const modalTitle = document.getElementById("modalTitle");
-const noteForm = document.getElementById("noteForm");
+const modalOverlay  = document.getElementById("modalOverlay");
+const modalTitle    = document.getElementById("modalTitle");
+const noteForm      = document.getElementById("noteForm");
 const noteTitleInput = document.getElementById("noteTitle");
-const noteBodyInput = document.getElementById("noteBody");
-const cancelBtn = document.getElementById("cancelBtn");
-const saveBtn = document.getElementById("saveBtn");
+const noteBodyInput  = document.getElementById("noteBody");
+const cancelBtn     = document.getElementById("cancelBtn");
+const saveBtn       = document.getElementById("saveBtn");
 
 // ---------------------------------------------------------------------
 // State
 // ---------------------------------------------------------------------
-let currentUser = null;
-let unsubscribeNotes = null;
-let allNotes = [];       // full list of notes for the current user
-let editingNoteId = null; // null = creating a new note
+let currentUser    = null;
+let unsubscribeNotes = null; // holds the RTDB off() function
+let allNotes       = [];     // full list of notes for the current user
+let editingNoteId  = null;   // null = creating a new note
 
 // ---------------------------------------------------------------------
 // Auth guard: redirect to login if not signed in
@@ -64,18 +60,22 @@ logoutBtn.addEventListener("click", async () => {
 });
 
 // ---------------------------------------------------------------------
-// Firestore: live subscription to the current user's notes
+// Realtime Database: live subscription to the current user's notes
+// Data path: /notes/<uid>/<noteId>
 // ---------------------------------------------------------------------
 function subscribeToNotes() {
-  const notesRef = collection(db, "notes");
-  const notesQuery = query(
-    notesRef,
-    where("uid", "==", currentUser.uid),
-    orderBy("updatedAt", "desc")
-  );
+  const notesRef = ref(db, `notes/${currentUser.uid}`);
 
-  unsubscribeNotes = onSnapshot(notesQuery, (snapshot) => {
-    allNotes = snapshot.docs.map((d) => ({ id: d.id, ...d.data() }));
+  // onValue returns an unsubscribe function
+  unsubscribeNotes = onValue(notesRef, (snapshot) => {
+    allNotes = [];
+    snapshot.forEach((child) => {
+      allNotes.push({ id: child.key, ...child.val() });
+    });
+
+    // Sort by updatedAt descending (most recently updated first)
+    allNotes.sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
+
     renderNotes(filterNotes(searchInput.value));
   }, (error) => {
     console.error("Error loading notes:", error);
@@ -90,7 +90,7 @@ function filterNotes(term) {
   if (!t) return allNotes;
   return allNotes.filter((n) =>
     (n.title || "").toLowerCase().includes(t) ||
-    (n.body || "").toLowerCase().includes(t)
+    (n.body  || "").toLowerCase().includes(t)
   );
 }
 
@@ -100,10 +100,12 @@ searchInput.addEventListener("input", () => {
 
 // ---------------------------------------------------------------------
 // Rendering
+// RTDB timestamps are plain numbers (ms since epoch), not Firestore
+// Timestamp objects, so we use new Date(timestamp) directly.
 // ---------------------------------------------------------------------
 function formatDate(timestamp) {
-  if (!timestamp || !timestamp.toDate) return "";
-  const d = timestamp.toDate();
+  if (!timestamp) return "";
+  const d = new Date(timestamp);
   return d.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) +
     " · " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
@@ -134,7 +136,7 @@ function renderNotes(notes) {
       <div class="note-body">${escapeHtml(note.body)}</div>
       <div class="note-meta">${formatDate(note.updatedAt)}</div>
       <div class="note-actions">
-        <button class="btn-edit" data-id="${note.id}">Edit</button>
+        <button class="btn-edit"   data-id="${note.id}">Edit</button>
         <button class="btn-delete" data-id="${note.id}">Delete</button>
       </div>
     `;
@@ -151,13 +153,13 @@ function renderNotes(notes) {
 }
 
 // ---------------------------------------------------------------------
-// Modal open/close
+// Modal open / close
 // ---------------------------------------------------------------------
 function openCreateModal() {
   editingNoteId = null;
   modalTitle.textContent = "New note";
   noteTitleInput.value = "";
-  noteBodyInput.value = "";
+  noteBodyInput.value  = "";
   modalOverlay.classList.remove("hidden");
   noteTitleInput.focus();
 }
@@ -168,7 +170,7 @@ function openEditModal(noteId) {
   editingNoteId = noteId;
   modalTitle.textContent = "Edit note";
   noteTitleInput.value = note.title || "";
-  noteBodyInput.value = note.body || "";
+  noteBodyInput.value  = note.body  || "";
   modalOverlay.classList.remove("hidden");
   noteTitleInput.focus();
 }
@@ -192,30 +194,27 @@ noteForm.addEventListener("submit", async (e) => {
   e.preventDefault();
 
   const title = noteTitleInput.value.trim();
-  const body = noteBodyInput.value.trim();
+  const body  = noteBodyInput.value.trim();
   if (!title) return;
 
   saveBtn.disabled = true;
   saveBtn.textContent = "Saving...";
 
   try {
+    const now = serverTimestamp();
+
     if (editingNoteId) {
-      // Update existing note
-      const noteRef = doc(db, "notes", editingNoteId);
-      await updateDoc(noteRef, {
-        title,
-        body,
-        updatedAt: serverTimestamp()
-      });
+      // Update existing note at /notes/<uid>/<noteId>
+      const noteRef = ref(db, `notes/${currentUser.uid}/${editingNoteId}`);
+      await update(noteRef, { title, body, updatedAt: now });
     } else {
-      // Create new note
-      const notesRef = collection(db, "notes");
-      await addDoc(notesRef, {
-        uid: currentUser.uid,
+      // Create new note under /notes/<uid>/
+      const userNotesRef = ref(db, `notes/${currentUser.uid}`);
+      await push(userNotesRef, {
         title,
         body,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        createdAt: now,
+        updatedAt: now
       });
     }
     closeModal();
@@ -236,7 +235,7 @@ async function handleDelete(noteId) {
   if (!confirmed) return;
 
   try {
-    await deleteDoc(doc(db, "notes", noteId));
+    await remove(ref(db, `notes/${currentUser.uid}/${noteId}`));
   } catch (error) {
     console.error("Error deleting note:", error);
     alert("Could not delete the note. Please try again.");

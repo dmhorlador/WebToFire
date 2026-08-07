@@ -254,8 +254,17 @@ studentForm.addEventListener("submit", async (e) => {
     }
     closeStudentModal();
   } catch (error) {
-    console.error(error);
-    showAlert(studentFormAlert, "Could not save student. Please try again.");
+    console.error("Error saving student:", error);
+    let errorMessage = "Could not save student. Please try again.";
+    
+    // Provide more specific error messages based on error code
+    if (error.code === "PERMISSION_DENIED" || error.message?.includes("permission")) {
+      errorMessage = "Permission denied. Please check your database security rules.";
+    } else if (error.message) {
+      errorMessage = `Error: ${error.message}`;
+    }
+    
+    showAlert(studentFormAlert, errorMessage);
   } finally {
     saveStudentBtn.disabled = false;
     saveStudentBtnText.textContent = id ? "Update Student" : "Save Student";

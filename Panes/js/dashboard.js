@@ -66,26 +66,30 @@ auth.onAuthStateChanged(function (user) {
 });
 
 /* ============================================================
-   FIRESTORE — Real-time subscription
+   REALTIME DATABASE — Real-time subscription
    ============================================================ */
 function subscribeToTasks(uid) {
   if (unsubscribeTasks) unsubscribeTasks();
 
-  unsubscribeTasks = db.collection("tasks")
-    .where("uid", "==", uid)
-    .onSnapshot(function (snapshot) {
-      allTasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      // Sort client-side: incomplete first, then by due date ascending
-      allTasks.sort((a, b) => {
-        if (a.completed !== b.completed) return a.completed ? 1 : -1;
-        return (a.dueDate || "").localeCompare(b.dueDate || "");
-      });
-      renderTasks();
-      renderStats();
-    }, function (error) {
-      console.error(error);
-      showAlert("Could not load tasks: " + error.message, "danger");
+  const tasksRef = db.ref("tasks/" + uid);
+
+  const listener = tasksRef.on("value", function (snapshot) {
+    const data = snapshot.val() || {};
+    allTasks = Object.entries(data).map(([id, task]) => ({ id, ...task }));
+    // Sort client-side: incomplete first, then by due date ascending
+    allTasks.sort((a, b) => {
+      if (a.completed !== b.completed) return a.completed ? 1 : -1;
+      return (a.dueDate || "").localeCompare(b.dueDate || "");
     });
+    renderTasks();
+    renderStats();
+  }, function (error) {
+    console.error(error);
+    showAlert("Could not load tasks: " + error.message, "danger");
+  });
+
+  // Return an unsubscribe function
+  unsubscribeTasks = () => tasksRef.off("value", listener);
 }
 
 /* ============================================================
@@ -123,17 +127,17 @@ taskForm.addEventListener("submit", async function (e) {
     dueDate,
     dueTime: dueTime || null,
     priority,
-    updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    updatedAt: Date.now()
   };
 
   try {
     if (editingTaskId) {
-      await db.collection("tasks").doc(editingTaskId).update(taskData);
+      await db.ref("tasks/" + user.uid + "/" + editingTaskId).update(taskData);
       showAlert("Task updated successfully!", "success");
     } else {
       taskData.completed = false;
-      taskData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection("tasks").add(taskData);
+      taskData.createdAt = Date.now();
+      await db.ref("tasks/" + user.uid).push(taskData);
       showAlert("Task added successfully!", "success");
     }
     bootstrap.Modal.getInstance(document.getElementById("taskModal")).hide();
@@ -208,7 +212,7 @@ document.getElementById("confirmDeleteBtn").addEventListener("click", async func
   btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Deleting...';
 
   try {
-    await db.collection("tasks").doc(deleteTargetId).delete();
+    await db.ref("tasks/" + auth.currentUser.uid + "/" + deleteTargetId).remove();
     showAlert("Task deleted.", "success");
     bootstrap.Modal.getInstance(document.getElementById("deleteModal")).hide();
   } catch (error) {
@@ -225,10 +229,12 @@ document.getElementById("confirmDeleteBtn").addEventListener("click", async func
    TOGGLE COMPLETE / PENDING
    ============================================================ */
 async function toggleTaskComplete(taskId, currentStatus) {
+  const user = auth.currentUser;
+  if (!user) return;
   try {
-    await db.collection("tasks").doc(taskId).update({
+    await db.ref("tasks/" + user.uid + "/" + taskId).update({
       completed: !currentStatus,
-      completedAt: !currentStatus ? firebase.firestore.FieldValue.serverTimestamp() : null
+      completedAt: !currentStatus ? Date.now() : null
     });
   } catch (error) {
     console.error(error);

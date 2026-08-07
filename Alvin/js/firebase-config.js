@@ -7,7 +7,7 @@
 
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getDatabase } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-database.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyC13CmoYNer2zAE9anLnnBq8REB1MBEu6M",
@@ -24,4 +24,4 @@ const app = initializeApp(firebaseConfig);
 
 // Initialize services and export them for use in other modules
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+export const db = getDatabase(app);

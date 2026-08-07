@@ -20,4 +20,4 @@ firebase.initializeApp(firebaseConfig);
 
 // Shared Firebase service instances used across auth.js and dashboard.js
 const auth = firebase.auth();
-const db = firebase.firestore();
+const database = firebase.database();

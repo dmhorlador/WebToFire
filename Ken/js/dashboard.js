@@ -5,7 +5,8 @@
 let currentUser = null;
 let allExpenses = [];
 let editingId = null;
-let unsubscribeExpenses = null;
+let expensesRef = null;
+let expensesListener = null;
 
 // --- DOM references ---
 const expensesBody = document.getElementById('expensesBody');
@@ -40,18 +41,28 @@ auth.onAuthStateChanged(user => {
 
 // ---- Load expenses in real time ----
 function loadExpenses() {
-  if (unsubscribeExpenses) unsubscribeExpenses();
+  // Detach any existing listener
+  if (expensesRef && expensesListener) {
+    expensesRef.off('value', expensesListener);
+  }
 
-  unsubscribeExpenses = db.collection('expenses')
-    .where('userId', '==', currentUser.uid)
-    .orderBy('date', 'desc')
-    .onSnapshot(snapshot => {
-      allExpenses = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-      applyFilter();
-    }, err => {
-      console.error(err);
-      showToast('Failed to load expenses: ' + err.message, 'error');
+  // Each user's expenses live at: expenses/<uid>/
+  expensesRef = database.ref('expenses/' + currentUser.uid);
+
+  expensesListener = expensesRef.on('value', snapshot => {
+    allExpenses = [];
+    snapshot.forEach(child => {
+      allExpenses.push({ id: child.key, ...child.val() });
     });
+
+    // Sort descending by date
+    allExpenses.sort((a, b) => (a.date < b.date ? 1 : -1));
+
+    applyFilter();
+  }, err => {
+    console.error(err);
+    showToast('Failed to load expenses: ' + err.message, 'error');
+  });
 }
 
 // ---- Search Filter ----
@@ -184,11 +195,13 @@ expenseForm.addEventListener('submit', async (e) => {
   submitBtn.disabled = true;
   try {
     if (editingId) {
-      await db.collection('expenses').doc(editingId).update(data);
+      // Update existing record
+      await database.ref('expenses/' + currentUser.uid + '/' + editingId).update(data);
       showToast('Expense updated successfully', 'success');
     } else {
-      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-      await db.collection('expenses').add(data);
+      // Push creates a new unique key automatically
+      data.createdAt = Date.now();
+      await database.ref('expenses/' + currentUser.uid).push(data);
       showToast('Expense added successfully', 'success');
     }
     closeModal();
@@ -204,7 +217,7 @@ async function deleteExpense(id) {
   if (!confirm('Are you sure you want to delete this expense?')) return;
 
   try {
-    await db.collection('expenses').doc(id).delete();
+    await database.ref('expenses/' + currentUser.uid + '/' + id).remove();
     showToast('Expense deleted successfully', 'success');
   } catch (err) {
     showToast('Error deleting expense: ' + err.message, 'error');
@@ -213,6 +226,10 @@ async function deleteExpense(id) {
 
 // ---- Logout ----
 logoutBtn.addEventListener('click', () => {
+  // Detach listener before signing out
+  if (expensesRef && expensesListener) {
+    expensesRef.off('value', expensesListener);
+  }
   auth.signOut().then(() => {
     window.location.href = 'index.html';
   });

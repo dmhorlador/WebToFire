@@ -5,6 +5,9 @@
    own Firebase project:
    Firebase Console -> Project Settings -> General -> Your apps -> SDK setup
 
+   Be sure to include "databaseURL" (from Build -> Realtime Database in the
+   Firebase console) — it's required for the Realtime Database SDK to work.
+
    This project uses the Firebase compat SDKs (loaded via <script> tags in
    each HTML file), so firebase.initializeApp() is available globally.
    ========================================================================== */
@@ -24,4 +27,4 @@ firebase.initializeApp(firebaseConfig);
 
 // Shared references used across the app
 const auth = firebase.auth();
-const db = firebase.firestore();
+const db = firebase.database();
